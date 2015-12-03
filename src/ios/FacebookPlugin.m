@@ -17,24 +17,24 @@
 {
     #ifdef DEBUG
         [FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorAppEvents];
+   #else
+        UIApplication *application = [UIApplication sharedApplication];
+        NSDictionary *launchOptions = [notification userInfo];
+
+        [[FBSDKApplicationDelegate sharedInstance] application:application
+            didFinishLaunchingWithOptions:launchOptions];
     #endif
-
-    UIApplication *application = [UIApplication sharedApplication];
-    NSDictionary *launchOptions = [notification userInfo];
-
-    [[FBSDKApplicationDelegate sharedInstance] application:application
-        didFinishLaunchingWithOptions:launchOptions];
 }
 
 - (void)handleOpenURLNotification:(NSNotification*)notification
 {
     UIApplication *application = [UIApplication sharedApplication];
 
-    // [[FBSDKApplicationDelegate sharedInstance] application:application
-    //     openURL:url
-    //     sourceApplication:sourceApplication
-    //     annotation:annotation
-    //   ];
+//     [[FBSDKApplicationDelegate sharedInstance] application:application
+//         openURL:[notification object]
+//         sourceApplication:sourceApplication
+//         annotation:annotation
+//       ];
 }
 
 - (void)onAppDidBecomeActive:(NSNotification*)notification
@@ -44,7 +44,7 @@
 
 - (void)logPurchase:(CDVInvokedUrlCommand*)command
 {
-    double purchaseAmount = [command.arguments objectAtIndex:0];
+    NSNumber* purchaseAmount = [command.arguments objectAtIndex:0];
     NSString* currency = [command.arguments objectAtIndex:1];
     NSDictionary* parameters = [command.arguments objectAtIndex:2];
     FBSDKAccessToken* accessToken = [command.arguments objectAtIndex:3];
@@ -61,7 +61,7 @@
         accessToken = nil;
     }
     
-    [FBSDKAppEvents logPurchase:purchaseAmount
+    [FBSDKAppEvents logPurchase:[purchaseAmount doubleValue]
               currency:currency
               parameters:parameters
               accessToken:accessToken ];
