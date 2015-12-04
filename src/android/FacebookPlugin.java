@@ -1,47 +1,68 @@
 package com.facebook.cordova;
 
+import android.os.Bundle;
 import android.util.Log;
+
+import com.facebook.FacebookSdk;
+import com.facebook.LoggingBehavior;
+import com.facebook.appevents.AppEventsConstants;
+import com.facebook.appevents.AppEventsLogger;
 
 import org.apache.cordova.BuildConfig;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
-import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.math.BigDecimal;
+import java.util.Currency;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 public class FacebookPlugin extends CordovaPlugin {
 
     private static final String TAG = "FacebookPlugin";
+    private AppEventsLogger logger;
 
     @Override protected void pluginInitialize() {
         Log.e(TAG, "plugin initialized");
+
+        FacebookSdk.sdkInitialize(cordova.getActivity().getApplicationContext());
+
+        if (BuildConfig.DEBUG) {
+            FacebookSdk.setIsDebugEnabled(true);
+            FacebookSdk.addLoggingBehavior(LoggingBehavior.APP_EVENTS);
+        }
+
+        logger = AppEventsLogger.newLogger(cordova.getActivity());
     }
 
     @Override
-    protected void onResume() {
-      super.onResume();
+    public void onResume(boolean multitasking) {
+        super.onResume(multitasking);
 
-      // Logs 'install' and 'app activate' App Events.
-      AppEventsLogger.activateApp(this);
+        if (!BuildConfig.DEBUG) {
+            // Logs 'install' and 'app activate' App Events.
+            AppEventsLogger.activateApp(cordova.getActivity());
+        }
     }
 
     @Override
-    protected void onPause() {
-      super.onPause();
+    public void onPause(boolean multitasking) {
+        super.onPause(multitasking);
 
-      // Logs 'app deactivate' App Event.
-      AppEventsLogger.deactivateApp(this);
+        if (!BuildConfig.DEBUG) {
+            // Logs 'app deactivate' App Event.
+            AppEventsLogger.deactivateApp(cordova.getActivity());
+        }
     }
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+        if (BuildConfig.DEBUG) {
+            return false;
+        }
+
         if ("logPurchase".equals(action)) {
             logPurchase(args);
             return true;
@@ -54,151 +75,76 @@ public class FacebookPlugin extends CordovaPlugin {
     }
 
     private void logPurchase(JSONArray args) {
-        analytics.with(cordova.getActivity().getApplicationContext()).track(
-                optArgString(args, 0),
-                makePropertiesFromJSON(args.optJSONObject(1)),
-                null // passing options is deprecated
-        );
+        BigDecimal purchaseAmount = BigDecimal.valueOf(optArgDouble(args, 0));
+        String currencyString = optArgString(args, 1);
+        Currency currency = Currency.getInstance(isNullOrEmpty(currencyString) ? "USD" : currencyString);
+        Bundle parameters = makeParameters(args.optJSONObject(2));
+
+        logger.logPurchase(purchaseAmount, currency, parameters);
     }
 
     private void logEvent(JSONArray args) {
-        analytics.with(cordova.getActivity().getApplicationContext()).track(
-                optArgString(args, 0),
-                makePropertiesFromJSON(args.optJSONObject(1)),
-                null // passing options is deprecated
-        );
+        String eventName = stringToAppEventConstantValue(optArgString(args, 0));
+        Double valueToSum = optArgDouble(args, 1);
+        Bundle parameters = makeParameters(args.optJSONObject(2));
+
+        logger.logEvent(eventName, valueToSum, parameters);
     }
 
-    private void screen(JSONArray args) {
-        analytics.with(cordova.getActivity().getApplicationContext()).screen(
-                optArgString(args, 0),
-                optArgString(args, 1),
-                makePropertiesFromJSON(args.optJSONObject(2)),
-                null // passing options is deprecated
-        );
-    }
+    private static Bundle makeParameters(JSONObject jsonObject) {
+        Bundle parameters = new Bundle();
 
-    private void alias(JSONArray args) {
-        analytics.with(cordova.getActivity().getApplicationContext()).alias(
-                optArgString(args, 0),
-                null // passing options is deprecated
-        );
-    }
+        if (jsonObject != null) {
 
-    private void reset() {
-        analytics.with(cordova.getActivity().getApplicationContext()).reset();
-    }
+            Iterator<String> keysIter = jsonObject.keys();
 
-    private void flush() {
-        analytics.with(cordova.getActivity().getApplicationContext()).flush();
-    }
+            while (keysIter.hasNext()) {
+                String key = keysIter.next();
+                Object value = jsonObject.isNull(key) ? null : jsonObject.opt(key);
 
-    private void getSnapshot(CallbackContext callbackContext) {
-        StatsSnapshot snapshot = analytics.with(cordova.getActivity().getApplicationContext()).getSnapshot();
-        JSONObject snapshotJSON = new JSONObject();
+                key = stringToAppEventConstantValue(key);
 
-        try {
-            snapshotJSON.put("timestamp", snapshot.timestamp);
-            snapshotJSON.put("flushCount", snapshot.flushCount);
-            snapshotJSON.put("flushEventCount", snapshot.flushEventCount);
-            snapshotJSON.put("integrationOperationCount", snapshot.integrationOperationCount);
-            snapshotJSON.put("integrationOperationDuration", snapshot.integrationOperationDuration);
-            snapshotJSON.put("integrationOperationAverageDuration", snapshot.integrationOperationAverageDuration);
-            snapshotJSON.put("integrationOperationDurationByIntegration", new JSONObject(snapshot.integrationOperationDurationByIntegration));
-
-            PluginResult r = new PluginResult(PluginResult.Status.OK, snapshotJSON);
-            r.setKeepCallback(false);
-            callbackContext.sendPluginResult(r);
-        } catch(JSONException e) {
-            e.printStackTrace();
-            return;
-        }
-    }
-
-    private Traits makeTraitsFromJSON(JSONObject json) {
-        Traits traits = new Traits();
-        Map<String, Object> traitMap = mapFromJSON(json);
-
-        if (traitMap != null) {
-            if (traitMap.get("address") != null) {
-                traitMap.put("address", new Address((Map<String, Object>) traitMap.get("address")));
-            }
-
-            traits.putAll(traitMap);
-        }
-
-        return traits;
-    }
-
-    private Properties makePropertiesFromJSON(JSONObject json) {
-        Properties properties = new Properties();
-        Map<String, Object> propertiesMap = mapFromJSON(json);
-
-        if (propertiesMap != null) {
-            List<Map<String, Object>> rawProducts = (List<Map<String, Object>>) propertiesMap.get("products");
-
-            if (rawProducts != null) {
-                List<Product> products = new ArrayList<Product>();
-
-                for (Map<String, Object> rawProduct : rawProducts) {
-                    Product product = new Product(
-                        rawProduct.get("id") == null ? "" : (String) rawProduct.get("id"),
-                        rawProduct.get("sku") == null ? "" : (String) rawProduct.get("sku"),
-                        rawProduct.get("price") == null ? 0d : Double.valueOf(rawProduct.get("price").toString())
-                    );
-
-                    product.putAll(rawProduct);
-                    products.add(product);
+                if (value != null) {
+                    if (value instanceof Integer){
+                        parameters.putInt(key, (Integer) value);
+                    } else if(value instanceof Double){
+                        parameters.putDouble(key, (Double) value);
+                    } else if(value instanceof Float){
+                        parameters.putFloat(key, (Float) value);
+                    } else if(value instanceof Long){
+                        parameters.putLong(key, (Long) value);
+                    } else if(value instanceof String){
+                        parameters.putString(key, (String) value);
+                    } else if (value instanceof Boolean) {
+                        parameters.putString(key, (Boolean) value ?
+                                AppEventsConstants.EVENT_PARAM_VALUE_YES :
+                                AppEventsConstants.EVENT_PARAM_VALUE_NO);
+                    }
                 }
-
-                propertiesMap.put("products", products.toArray(new Product[products.size()]));
-            }
-
-            properties.putAll(propertiesMap);
-        }
-
-        return properties;
-    }
-
-    private static Map<String, Object> mapFromJSON(JSONObject jsonObject) {
-        if (jsonObject == null) {
-            return null;
-        }
-        Map<String, Object> map = new HashMap<String, Object>();
-        Iterator<String> keysIter = jsonObject.keys();
-        while (keysIter.hasNext()) {
-            String key = keysIter.next();
-            Object value = jsonObject.isNull(key) ? null : getObject(jsonObject.opt(key));
-
-            if (value != null) {
-                map.put(key, value);
             }
         }
-        return map;
+
+        return parameters;
     }
 
-    private static List<Object> listFromJSON(JSONArray jsonArray) {
-        List<Object> list = new ArrayList<Object>();
-        for (int i = 0, count = jsonArray.length(); i < count; i++) {
-            Object value = getObject(jsonArray.opt(i));
-            if (value != null) {
-                list.add(value);
-            }
+    public static String stringToAppEventConstantValue(String key) {
+        try {
+            // maybe convert string constant name to constant value
+            return (String) AppEventsConstants.class.getField(key).get(null);
+        } catch (Exception e) {
+            return key;
         }
-        return list;
     }
 
-    private static Object getObject(Object value) {
-        if (value instanceof JSONObject) {
-            value = mapFromJSON((JSONObject) value);
-        } else if (value instanceof JSONArray) {
-            value = listFromJSON((JSONArray) value);
-        }
-        return value;
+    public static String optArgString(JSONArray args, int index) {
+        return args.isNull(index) ? null : args.optString(index);
     }
 
-    public static String optArgString(JSONArray args, int index)
-    {
-        return args.isNull(index) ? null :args.optString(index);
+    public static Double optArgDouble(JSONArray args, int index) {
+        return args.isNull(index) ? null : args.optDouble(index);
+    }
+
+    public static boolean isNullOrEmpty(String str) {
+        return str == null || str.isEmpty();
     }
 }

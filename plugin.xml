@@ -29,7 +29,15 @@
             </feature>
         </config-file>
 
-        <framework src="com.facebook.android:facebook-android-sdk:4.8.2"/>
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <uses-permission android:name="android.permission.INTERNET" />
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest/application">
+          <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+        </config-file>
+
+        <framework src="com.facebook.android:facebook-android-sdk:4.8.+"/>
 
         <source-file src="src/android/FacebookPlugin.java" target-dir="src/com/facebook/cordova"/>
     </platform>
