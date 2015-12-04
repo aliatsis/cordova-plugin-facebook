@@ -21,9 +21,18 @@
         <clobbers target="facebookPlugin" />
     </js-module>
 
-<!--     <platform name="android">
-        <framework src="src/android/fb-sdk.gradle" custom="true" type="gradleReference" />
-    </platform> -->
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="FacebookPlugin">
+                <param name="android-package" value="com.facebook.cordova.FacebookPlugin"/>
+                <param name="onload" value="true"/>
+            </feature>
+        </config-file>
+
+        <framework src="com.facebook.android:facebook-android-sdk:4.8.2"/>
+
+        <source-file src="src/android/FacebookPlugin.java" target-dir="src/com/facebook/cordova"/>
+    </platform>
 
     <platform name="ios">
         <config-file target="config.xml" parent="/*">

@@ -48,6 +48,7 @@ NSDictionary *appEventParameterNameConstByString = nil;
 
 - (void)onAppDidBecomeActive:(NSNotification*)notification
 {
+    NSLog(@"[FacebookPlugin] plugin activated");
     [FBSDKAppEvents activateApp];
 }
 
