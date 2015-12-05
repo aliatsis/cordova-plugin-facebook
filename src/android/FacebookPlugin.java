@@ -29,10 +29,8 @@ public class FacebookPlugin extends CordovaPlugin {
 
         FacebookSdk.sdkInitialize(cordova.getActivity().getApplicationContext());
 
-        if (BuildConfig.DEBUG) {
-            FacebookSdk.setIsDebugEnabled(true);
-            FacebookSdk.addLoggingBehavior(LoggingBehavior.APP_EVENTS);
-        }
+        // FacebookSdk.setIsDebugEnabled(true);
+        // FacebookSdk.addLoggingBehavior(LoggingBehavior.APP_EVENTS);
 
         logger = AppEventsLogger.newLogger(cordova.getActivity());
     }
@@ -41,30 +39,22 @@ public class FacebookPlugin extends CordovaPlugin {
     public void onResume(boolean multitasking) {
         super.onResume(multitasking);
 
-        if (!BuildConfig.DEBUG) {
-            Log.e(TAG, "activating app onResume");
+        Log.e(TAG, "activating app onResume");
 
-            // Logs 'install' and 'app activate' App Events.
-            AppEventsLogger.activateApp(cordova.getActivity());
-        }
+        // Logs 'install' and 'app activate' App Events.
+        AppEventsLogger.activateApp(cordova.getActivity());
     }
 
     @Override
     public void onPause(boolean multitasking) {
         super.onPause(multitasking);
 
-        if (!BuildConfig.DEBUG) {
-            // Logs 'app deactivate' App Event.
-            AppEventsLogger.deactivateApp(cordova.getActivity());
-        }
+        // Logs 'app deactivate' App Event.
+        AppEventsLogger.deactivateApp(cordova.getActivity());
     }
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        if (BuildConfig.DEBUG) {
-            return false;
-        }
-
         if ("logPurchase".equals(action)) {
             logPurchase(args);
             return true;
