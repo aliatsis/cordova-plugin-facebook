@@ -141,7 +141,7 @@ public class FacebookPlugin extends CordovaPlugin {
     }
 
     public static Double optArgDouble(JSONArray args, int index) {
-        return args.isNull(index) ? null : args.optDouble(index);
+        return args.isNull(index) ? 0 : args.optDouble(index);
     }
 
     public static boolean isNullOrEmpty(String str) {
