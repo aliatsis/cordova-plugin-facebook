@@ -42,6 +42,8 @@ public class FacebookPlugin extends CordovaPlugin {
         super.onResume(multitasking);
 
         if (!BuildConfig.DEBUG) {
+            Log.e(TAG, "activating app onResume");
+
             // Logs 'install' and 'app activate' App Events.
             AppEventsLogger.activateApp(cordova.getActivity());
         }
